@@ -30,7 +30,7 @@ def main():
         sys.executable, "-m", "pyserini.search.lucene",
         "--index", args.index_dir,
         "--topics", queries_tsv,
-        "--topics-format", "tsv",
+        "--topics-format", "msmarco",
         "--output", args.out_run,
         "--hits", str(args.k),
         "--bm25"
