@@ -1,0 +1,2 @@
+model,dataset,map,mrr,ndcg@10,recall@100
+bm25,miracl_ar_dev,0.378258,0.458825,0.432078,0.785947
