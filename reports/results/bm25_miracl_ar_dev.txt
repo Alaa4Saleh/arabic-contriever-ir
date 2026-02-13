@@ -1,0 +1,12 @@
+Experiment: BM25 baseline
+Dataset: MIRACL Arabic (dev)
+Index size: 2,061,414 documents
+Queries: 2,896
+BM25 params: k1=0.9, b=0.4
+Hits per query: 1000
+
+Results:
+MAP: 0.378258
+MRR: 0.458825
+nDCG@10: 0.432078
+Recall@100: 0.785947
