@@ -1,6 +1,7 @@
 import os
 import argparse
 import subprocess
+import sys
 
 def main():
     parser = argparse.ArgumentParser()
@@ -12,7 +13,7 @@ def main():
     os.makedirs(args.index_dir, exist_ok=True)
 
     cmd = [
-        "python", "-m", "pyserini.index.lucene",
+        sys.executable, "-m", "pyserini.index.lucene",
         "--collection", "JsonCollection",
         "--input", os.path.dirname(args.collection),
         "--index", args.index_dir,

@@ -3,6 +3,7 @@ import csv
 import argparse
 import subprocess
 import ir_datasets
+import sys
 
 def write_queries_tsv(dataset_id: str, out_path: str):
     ds = ir_datasets.load(dataset_id)
@@ -26,7 +27,7 @@ def main():
     os.makedirs(os.path.dirname(args.out_run), exist_ok=True)
 
     cmd = [
-        "python", "-m", "pyserini.search.lucene",
+        sys.executable, "-m", "pyserini.search.lucene",
         "--index", args.index_dir,
         "--topics", queries_tsv,
         "--topics-format", "tsv",
