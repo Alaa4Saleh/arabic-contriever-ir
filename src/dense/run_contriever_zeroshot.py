@@ -17,15 +17,16 @@ def mean_pooling(last_hidden_state, attention_mask):
 
 
 @torch.no_grad()
-def encode_texts(texts, tokenizer, model, device, batch_size=64):
+def encode_texts(texts, tokenizer, model, device, batch_size=64, fp16=False):
     all_embs = []
     for i in range(0, len(texts), batch_size):
         batch = texts[i:i + batch_size]
         tok = tokenizer(batch, padding=True, truncation=True, max_length=256, return_tensors="pt")
         tok = {k: v.to(device) for k, v in tok.items()}
-        out = model(**tok)
-        emb = mean_pooling(out.last_hidden_state, tok["attention_mask"])
-        emb = torch.nn.functional.normalize(emb, p=2, dim=1)
+        with torch.amp.autocast("cuda", enabled=fp16 and device.type == "cuda"):
+            out = model(**tok)
+            emb = mean_pooling(out.last_hidden_state, tok["attention_mask"])
+        emb = torch.nn.functional.normalize(emb.float(), p=2, dim=1)
         all_embs.append(emb.cpu().numpy().astype("float32"))
     return np.vstack(all_embs)
 
@@ -42,12 +43,23 @@ def main():
     parser.add_argument("--index_type", choices=["flatip", "ivf"], default="flatip")
     parser.add_argument("--ivf_nlist", type=int, default=4096)
     parser.add_argument("--ivf_nprobe", type=int, default=16)
+    parser.add_argument("--fp16", action="store_true", help="Use FP16 for faster encoding")
 
     args = parser.parse_args()
 
     os.makedirs(os.path.dirname(args.out_run), exist_ok=True)
 
-    device = torch.device("cpu")  # GPU broken on this VM right now
+    if torch.cuda.is_available():
+        try:
+            # Test if the GPU actually works with this PyTorch build
+            torch.zeros(1, device="cuda")
+            device = torch.device("cuda")
+        except Exception:
+            print("⚠️  CUDA is available but GPU is incompatible with this PyTorch build. Falling back to CPU.")
+            device = torch.device("cpu")
+    else:
+        device = torch.device("cpu")
+    print(f"Using device: {device}")
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
     model = AutoModel.from_pretrained(args.model_name)
@@ -76,7 +88,7 @@ def main():
     chunk = 10000
     for i in tqdm(range(0, len(doc_texts), chunk), desc="Encoding docs"):
         part = doc_texts[i:i + chunk]
-        emb = encode_texts(part, tokenizer, model, device, batch_size=args.batch_size)
+        emb = encode_texts(part, tokenizer, model, device, batch_size=args.batch_size, fp16=args.fp16)
         doc_embs[i:i + emb.shape[0]] = emb
 
     # 3) Build FAISS index (cosine via inner product on normalized vectors)
@@ -95,7 +107,7 @@ def main():
     with open(args.out_run, "w", encoding="utf-8") as f:
         for q in tqdm(queries, desc="Searching queries"):
             qid, qtext = q.query_id, q.text
-            q_emb = encode_texts([qtext], tokenizer, model, device, batch_size=1)
+            q_emb = encode_texts([qtext], tokenizer, model, device, batch_size=1, fp16=args.fp16)
             scores, idxs = index.search(q_emb, args.k)
 
             for rank, (doc_idx, score) in enumerate(zip(idxs[0], scores[0]), start=1):

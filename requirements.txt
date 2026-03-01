@@ -1,3 +1,8 @@
 ir_datasets
 numpy
 tqdm
+torch
+transformers
+faiss-cpu
+ranx
+pyserini

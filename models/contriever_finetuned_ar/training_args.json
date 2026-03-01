@@ -1,0 +1,18 @@
+{
+  "train_data": "data/training/miracl_ar_train.jsonl",
+  "model_name": "facebook/contriever",
+  "out_dir": "models/contriever_finetuned_ar",
+  "epochs": 3,
+  "batch_size": 4,
+  "lr": 2e-05,
+  "weight_decay": 0.01,
+  "warmup_ratio": 0.1,
+  "temperature": 0.05,
+  "max_length": 256,
+  "neg_per_query": 3,
+  "grad_accum_steps": 8,
+  "fp16": true,
+  "max_steps": 0,
+  "log_every": 50,
+  "seed": 42
+}
