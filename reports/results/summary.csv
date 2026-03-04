@@ -1,2 +1,6 @@
 model,dataset,map,mrr,ndcg@10,recall@100
 bm25,miracl_ar_dev,0.378258,0.458825,0.432078,0.785947
+contriever_zero,miracl_ar_dev,0.000206,0.000504,0.000199,0.001876
+contriever_ft,miracl_ar_dev,0.270567,0.346999,0.319012,0.620773
+mcontriever_zero,miracl_ar_dev,0.173500,0.226317,0.209232,0.531427
+mcontriever_ft,miracl_ar_dev,0.418044,0.488890,0.486433,0.902004

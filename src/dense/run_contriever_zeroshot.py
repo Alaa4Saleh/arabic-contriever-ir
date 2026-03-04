@@ -44,6 +44,8 @@ def main():
     parser.add_argument("--ivf_nlist", type=int, default=4096)
     parser.add_argument("--ivf_nprobe", type=int, default=16)
     parser.add_argument("--fp16", action="store_true", help="Use FP16 for faster encoding")
+    parser.add_argument("--emb_cache_dir", default=None,
+                        help="Directory to save/load doc embeddings (skip re-encoding)")
 
     args = parser.parse_args()
 
@@ -80,16 +82,37 @@ def main():
         if args.max_docs and len(doc_ids) >= args.max_docs:
             break
 
-    # 2) Encode docs
+    # 2) Encode docs (with caching support)
     dim = 768  # contriever base
-    doc_embs = np.zeros((len(doc_texts), dim), dtype="float32")
 
-    # encode in chunks to avoid huge temporary lists
-    chunk = 10000
-    for i in tqdm(range(0, len(doc_texts), chunk), desc="Encoding docs"):
-        part = doc_texts[i:i + chunk]
-        emb = encode_texts(part, tokenizer, model, device, batch_size=args.batch_size, fp16=args.fp16)
-        doc_embs[i:i + emb.shape[0]] = emb
+    emb_file = None
+    ids_file = None
+    if args.emb_cache_dir:
+        os.makedirs(args.emb_cache_dir, exist_ok=True)
+        emb_file = os.path.join(args.emb_cache_dir, "doc_embs.npy")
+        ids_file = os.path.join(args.emb_cache_dir, "doc_ids.npy")
+
+    if emb_file and os.path.exists(emb_file) and os.path.exists(ids_file):
+        print(f"Loading cached embeddings from {args.emb_cache_dir} …")
+        doc_embs = np.load(emb_file)
+        cached_ids = np.load(ids_file, allow_pickle=True).tolist()
+        doc_ids = cached_ids
+        print(f"  Loaded {len(doc_ids):,} doc embeddings from cache.")
+    else:
+        doc_embs = np.zeros((len(doc_texts), dim), dtype="float32")
+
+        # encode in chunks to avoid huge temporary lists
+        chunk = 10000
+        for i in tqdm(range(0, len(doc_texts), chunk), desc="Encoding docs"):
+            part = doc_texts[i:i + chunk]
+            emb = encode_texts(part, tokenizer, model, device, batch_size=args.batch_size, fp16=args.fp16)
+            doc_embs[i:i + emb.shape[0]] = emb
+
+        # Save cache if requested
+        if emb_file:
+            print(f"Saving embeddings cache to {args.emb_cache_dir} …")
+            np.save(emb_file, doc_embs)
+            np.save(ids_file, np.array(doc_ids, dtype=object))
 
     # 3) Build FAISS index (cosine via inner product on normalized vectors)
     if args.index_type == "flatip":
